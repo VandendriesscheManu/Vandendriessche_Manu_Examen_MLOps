@@ -32,7 +32,7 @@ jobs:
       stratify: ${{parent.inputs.stratify}}
 
   train_dt:
-    component: "azureml:got_train_dt:4"
+    component: "azureml:got_train_dt:5"
     inputs:
       train_ready: ${{parent.jobs.prepare.outputs.out_train}}
       test_ready: ${{parent.jobs.prepare.outputs.out_test}}

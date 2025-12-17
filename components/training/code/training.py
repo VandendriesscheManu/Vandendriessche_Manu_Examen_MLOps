@@ -75,7 +75,6 @@ def main():
     report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
 
     # MLflow logging (AzureML job usually auto-configures tracking)
-    # Tip: dit werkt, maar log_artifact/model kan crashen door package mismatch.
     mlflow.log_param("target_col", args.target_col)
     mlflow.log_param("max_depth", args.max_depth)
     mlflow.log_param("min_samples_split", args.min_samples_split)
@@ -90,10 +89,13 @@ def main():
     model_path = os.path.join(args.model_output, "model.joblib")
     joblib.dump(clf, model_path)
 
-    # IMPORTANT:
-    # Do NOT call mlflow.log_artifact(model_path) here.
-    # AzureML will upload anything in args.model_output automatically as the component output.
+    # ✅ NEW: save the feature columns used during training (needed for deployment one-hot alignment)
+    feature_cols_path = os.path.join(args.model_output, "feature_columns.json")
+    with open(feature_cols_path, "w", encoding="utf-8") as f:
+        json.dump(list(X_train.columns), f, indent=2)
+
     print(f"✅ Saved model to: {model_path}")
+    print(f"✅ Saved feature columns to: {feature_cols_path}")
 
     # Save metrics JSON to AzureML output folder
     os.makedirs(args.metrics_output, exist_ok=True)
