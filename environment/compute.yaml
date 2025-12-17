@@ -1,0 +1,16 @@
+$schema: https://azuremlschemas.azureedge.net/latest/computeInstance.schema.json
+name: cli-created-machine
+type: computeinstance
+size: Standard_DS11_v2
+
+schedules:
+  compute_start_stop:
+    - action: stop
+      state: enabled
+      trigger:
+        type: cron
+        time_zone: UTC
+        expression: "00 18 * * 1,2,3,4,5"
+        start_time: "2025-12-15T11:00:00" # Change this to the current date you're executing this on!
+
+idle_time_before_shutdown: "PT30M"

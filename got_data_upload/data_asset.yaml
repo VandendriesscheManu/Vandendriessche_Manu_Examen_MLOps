@@ -1,0 +1,6 @@
+$schema: https://azuremlschemas.azureedge.net/latest/data.schema.json
+name: got-persona-tabular
+version: 1
+type: mltable
+path: ./data_tabular
+description: Game of Thrones persona dataset (Excel → Parquet → MLTable)

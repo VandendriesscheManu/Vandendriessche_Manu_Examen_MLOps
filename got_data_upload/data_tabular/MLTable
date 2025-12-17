@@ -1,0 +1,4 @@
+paths:
+  - file: ./got_persona.parquet
+transformations:
+  - read_parquet: {}
