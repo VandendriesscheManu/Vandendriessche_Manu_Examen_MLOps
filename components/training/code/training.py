@@ -1,0 +1,99 @@
+import argparse
+import os
+import json
+import joblib
+import pandas as pd
+import mlflow
+import mlflow.sklearn
+
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score, classification_report
+
+
+def log_classification_report(report: dict, prefix: str = "cls"):
+    # log per-class + macro/weighted averages als metrics
+    for k, v in report.items():
+        if isinstance(v, dict):
+            for m, val in v.items():
+                if isinstance(val, (int, float)):
+                    mlflow.log_metric(f"{prefix}.{k}.{m}", float(val))
+        elif isinstance(v, (int, float)):
+            mlflow.log_metric(f"{prefix}.{k}", float(v))
+
+
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--train_ready", type=str, required=True)
+    parser.add_argument("--test_ready", type=str, required=True)
+    parser.add_argument("--target_col", type=str, default="house_affiliation")
+
+    parser.add_argument("--max_depth", type=int, default=10)
+    parser.add_argument("--min_samples_split", type=int, default=2)
+    parser.add_argument("--min_samples_leaf", type=int, default=1)
+    parser.add_argument("--random_state", type=int, default=42)
+
+    parser.add_argument("--model_output", type=str, required=True)
+    parser.add_argument("--metrics_output", type=str, required=True)
+
+    args = parser.parse_args()
+
+    # Load data
+    X_train_path = os.path.join(args.train_ready, "X_train.csv")
+    y_train_path = os.path.join(args.train_ready, "y_train.csv")
+    X_test_path  = os.path.join(args.test_ready,  "X_test.csv")
+    y_test_path  = os.path.join(args.test_ready,  "y_test.csv")
+
+    for p in [X_train_path, y_train_path, X_test_path, y_test_path]:
+        if not os.path.exists(p):
+            raise FileNotFoundError(f"Missing required file: {p}")
+
+    X_train = pd.read_csv(X_train_path)
+    y_train = pd.read_csv(y_train_path)[args.target_col].astype(str)
+
+    X_test = pd.read_csv(X_test_path)
+    y_test = pd.read_csv(y_test_path)[args.target_col].astype(str)
+
+    # Train
+    clf = DecisionTreeClassifier(
+        max_depth=args.max_depth,
+        min_samples_split=args.min_samples_split,
+        min_samples_leaf=args.min_samples_leaf,
+        random_state=args.random_state,
+    )
+    clf.fit(X_train, y_train)
+
+    # Evaluate
+    y_pred = clf.predict(X_test)
+    acc = float(accuracy_score(y_test, y_pred))
+
+    report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
+
+    # ✅ MLflow logging
+    mlflow.log_param("max_depth", args.max_depth)
+    mlflow.log_param("min_samples_split", args.min_samples_split)
+    mlflow.log_param("min_samples_leaf", args.min_samples_leaf)
+    mlflow.log_param("random_state", args.random_state)
+
+    mlflow.log_metric("accuracy", acc)
+    log_classification_report(report, prefix="classification_report")
+
+    # Save model (folder output)
+    os.makedirs(args.model_output, exist_ok=True)
+    model_path = os.path.join(args.model_output, "model.joblib")
+    joblib.dump(clf, model_path)
+
+    # Also log model artifact in run
+    mlflow.log_artifact(model_path)
+
+    # Save metrics as json output
+    os.makedirs(args.metrics_output, exist_ok=True)
+    with open(os.path.join(args.metrics_output, "metrics.json"), "w", encoding="utf-8") as f:
+        json.dump({"accuracy": acc, "classification_report": report}, f, indent=2)
+
+    print("✅ Training done")
+    print("Accuracy:", acc)
+
+
+if __name__ == "__main__":
+    main()

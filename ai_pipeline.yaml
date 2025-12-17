@@ -1,0 +1,26 @@
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+display_name: ai-pipeline
+
+inputs:
+  raw_data:
+    type: mltable
+    path: azureml:got-persona-tabular:1
+  target_col: house_affiliation
+  test_size: 0.2
+  seed: 42
+  stratify: 1
+
+settings:
+  default_compute: azureml:cli-created-machine
+  force_rerun: true
+
+jobs:
+  prepare:
+    component: azureml:got_prepare_split:3
+    inputs:
+      input_folder: ${{parent.inputs.raw_data}}
+      target_col: ${{parent.inputs.target_col}}
+      test_size: ${{parent.inputs.test_size}}
+      seed: ${{parent.inputs.seed}}
+      stratify: ${{parent.inputs.stratify}}

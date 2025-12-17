@@ -1,0 +1,43 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: got_prepare_split
+display_name: GOT - Prepare (Train/Test split)
+version: 3
+type: command
+
+inputs:
+  input_folder:
+    type: mltable
+  target_col:
+    type: string
+    default: house_affiliation
+  test_size:
+    type: number
+    default: 0.2
+  seed:
+    type: integer
+    default: 42
+  stratify:
+    type: integer
+    default: 1
+
+outputs:
+  out_train:
+    type: mltable
+  out_test:
+    type: mltable
+
+code: ./code
+
+environment:
+  conda_file: ./conda.yaml
+  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04
+
+command: >-
+  python prepare_component.py
+  --input_folder ${{inputs.input_folder}}
+  --target_col ${{inputs.target_col}}
+  --test_size ${{inputs.test_size}}
+  --seed ${{inputs.seed}}
+  --stratify ${{inputs.stratify}}
+  --out_train ${{outputs.out_train}}
+  --out_test ${{outputs.out_test}}
