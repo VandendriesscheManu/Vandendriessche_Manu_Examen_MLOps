@@ -4,14 +4,16 @@ import json
 import joblib
 import pandas as pd
 import mlflow
-import mlflow.sklearn
 
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, classification_report
 
 
-def log_classification_report(report: dict, prefix: str = "cls"):
-    # log per-class + macro/weighted averages als metrics
+def log_classification_report(report: dict, prefix: str = "classification_report"):
+    """
+    Logs metrics from sklearn classification_report(output_dict=True)
+    to MLflow as flat metric keys.
+    """
     for k, v in report.items():
         if isinstance(v, dict):
             for m, val in v.items():
@@ -24,21 +26,24 @@ def log_classification_report(report: dict, prefix: str = "cls"):
 def main():
     parser = argparse.ArgumentParser()
 
+    # Inputs (folders coming from previous component)
     parser.add_argument("--train_ready", type=str, required=True)
     parser.add_argument("--test_ready", type=str, required=True)
     parser.add_argument("--target_col", type=str, default="house_affiliation")
 
+    # Hyperparams
     parser.add_argument("--max_depth", type=int, default=10)
     parser.add_argument("--min_samples_split", type=int, default=2)
     parser.add_argument("--min_samples_leaf", type=int, default=1)
     parser.add_argument("--random_state", type=int, default=42)
 
+    # Outputs (AzureML uri_folder outputs)
     parser.add_argument("--model_output", type=str, required=True)
     parser.add_argument("--metrics_output", type=str, required=True)
 
     args = parser.parse_args()
 
-    # Load data
+    # Expected files (created by prepare/split step)
     X_train_path = os.path.join(args.train_ready, "X_train.csv")
     y_train_path = os.path.join(args.train_ready, "y_train.csv")
     X_test_path = os.path.join(args.test_ready, "X_test.csv")
@@ -48,13 +53,14 @@ def main():
         if not os.path.exists(p):
             raise FileNotFoundError(f"Missing required file: {p}")
 
+    # Load CSVs
     X_train = pd.read_csv(X_train_path)
     y_train = pd.read_csv(y_train_path)[args.target_col].astype(str)
 
     X_test = pd.read_csv(X_test_path)
     y_test = pd.read_csv(y_test_path)[args.target_col].astype(str)
 
-    # Train
+    # Train model
     clf = DecisionTreeClassifier(
         max_depth=args.max_depth,
         min_samples_split=args.min_samples_split,
@@ -68,7 +74,8 @@ def main():
     acc = float(accuracy_score(y_test, y_pred))
     report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
 
-    # ✅ MLflow logging (Azure ML will auto-configure tracking)
+    # MLflow logging (AzureML job usually auto-configures tracking)
+    # Tip: dit werkt, maar log_artifact/model kan crashen door package mismatch.
     mlflow.log_param("target_col", args.target_col)
     mlflow.log_param("max_depth", args.max_depth)
     mlflow.log_param("min_samples_split", args.min_samples_split)
@@ -78,19 +85,23 @@ def main():
     mlflow.log_metric("accuracy", acc)
     log_classification_report(report, prefix="classification_report")
 
-    # Save model (folder output)
+    # Save model to AzureML output folder
     os.makedirs(args.model_output, exist_ok=True)
     model_path = os.path.join(args.model_output, "model.joblib")
     joblib.dump(clf, model_path)
 
-    # Log model artifact
-    mlflow.log_artifact(model_path)
+    # IMPORTANT:
+    # Do NOT call mlflow.log_artifact(model_path) here.
+    # AzureML will upload anything in args.model_output automatically as the component output.
+    print(f"✅ Saved model to: {model_path}")
 
-    # Save metrics as json output
+    # Save metrics JSON to AzureML output folder
     os.makedirs(args.metrics_output, exist_ok=True)
-    with open(os.path.join(args.metrics_output, "metrics.json"), "w", encoding="utf-8") as f:
+    metrics_path = os.path.join(args.metrics_output, "metrics.json")
+    with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump({"accuracy": acc, "classification_report": report}, f, indent=2)
 
+    print(f"✅ Saved metrics to: {metrics_path}")
     print("✅ Training done")
     print("Accuracy:", acc)
 

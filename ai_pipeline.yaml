@@ -1,4 +1,4 @@
-$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+$schema: "https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json"
 type: pipeline
 display_name: ai-pipeline
 
@@ -6,12 +6,12 @@ inputs:
   raw_data:
     type: mltable
     path: azureml:got-persona-tabular:1
+
   target_col: house_affiliation
   test_size: 0.2
   seed: 42
   stratify: 1
 
-  # training hyperparams (optioneel als inputs)
   max_depth: 10
   min_samples_split: 2
   min_samples_leaf: 1
@@ -23,7 +23,7 @@ settings:
 
 jobs:
   prepare:
-    component: azureml:got_prepare_split:3
+    component: "azureml:got_prepare_split:3"
     inputs:
       input_folder: ${{parent.inputs.raw_data}}
       target_col: ${{parent.inputs.target_col}}
@@ -32,8 +32,7 @@ jobs:
       stratify: ${{parent.inputs.stratify}}
 
   train_dt:
-    component: azureml:got_train_dt:3
-
+    component: "azureml:got_train_dt:4"
     inputs:
       train_ready: ${{parent.jobs.prepare.outputs.out_train}}
       test_ready: ${{parent.jobs.prepare.outputs.out_test}}
@@ -42,9 +41,13 @@ jobs:
       min_samples_split: ${{parent.inputs.min_samples_split}}
       min_samples_leaf: ${{parent.inputs.min_samples_leaf}}
       random_state: ${{parent.inputs.random_state}}
+    outputs:
+      model_output: {}
+      metrics_output: {}
 
   register_model:
-    component: azureml://registries/azureml/components/register_model/versions/0.0.21
+    component: "azureml://registries/azureml/components/register_model/versions/0.0.21"
     inputs:
       model_path: ${{parent.jobs.train_dt.outputs.model_output}}
       model_name: got-decision-tree
+      model_type: custom_model
