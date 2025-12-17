@@ -11,6 +11,12 @@ inputs:
   seed: 42
   stratify: 1
 
+  # training hyperparams (optioneel als inputs)
+  max_depth: 10
+  min_samples_split: 2
+  min_samples_leaf: 1
+  random_state: 42
+
 settings:
   default_compute: azureml:cli-created-machine
   force_rerun: true
@@ -24,3 +30,21 @@ jobs:
       test_size: ${{parent.inputs.test_size}}
       seed: ${{parent.inputs.seed}}
       stratify: ${{parent.inputs.stratify}}
+
+  train_dt:
+    component: azureml:got_train_dt:3
+
+    inputs:
+      train_ready: ${{parent.jobs.prepare.outputs.out_train}}
+      test_ready: ${{parent.jobs.prepare.outputs.out_test}}
+      target_col: ${{parent.inputs.target_col}}
+      max_depth: ${{parent.inputs.max_depth}}
+      min_samples_split: ${{parent.inputs.min_samples_split}}
+      min_samples_leaf: ${{parent.inputs.min_samples_leaf}}
+      random_state: ${{parent.inputs.random_state}}
+
+  register_model:
+    component: azureml://registries/azureml/components/register_model/versions/0.0.21
+    inputs:
+      model_path: ${{parent.jobs.train_dt.outputs.model_output}}
+      model_name: got-decision-tree

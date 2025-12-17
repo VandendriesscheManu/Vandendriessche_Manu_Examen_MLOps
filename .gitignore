@@ -53,6 +53,9 @@ Thumbs.db
 data/*.parquet
 data/*.json
 
+# Prompts
+prompts/
+
 # Model files
 *.pkl
 *.h5

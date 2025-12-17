@@ -41,8 +41,8 @@ def main():
     # Load data
     X_train_path = os.path.join(args.train_ready, "X_train.csv")
     y_train_path = os.path.join(args.train_ready, "y_train.csv")
-    X_test_path  = os.path.join(args.test_ready,  "X_test.csv")
-    y_test_path  = os.path.join(args.test_ready,  "y_test.csv")
+    X_test_path = os.path.join(args.test_ready, "X_test.csv")
+    y_test_path = os.path.join(args.test_ready, "y_test.csv")
 
     for p in [X_train_path, y_train_path, X_test_path, y_test_path]:
         if not os.path.exists(p):
@@ -66,10 +66,10 @@ def main():
     # Evaluate
     y_pred = clf.predict(X_test)
     acc = float(accuracy_score(y_test, y_pred))
-
     report = classification_report(y_test, y_pred, output_dict=True, zero_division=0)
 
-    # ✅ MLflow logging
+    # ✅ MLflow logging (Azure ML will auto-configure tracking)
+    mlflow.log_param("target_col", args.target_col)
     mlflow.log_param("max_depth", args.max_depth)
     mlflow.log_param("min_samples_split", args.min_samples_split)
     mlflow.log_param("min_samples_leaf", args.min_samples_leaf)
@@ -83,7 +83,7 @@ def main():
     model_path = os.path.join(args.model_output, "model.joblib")
     joblib.dump(clf, model_path)
 
-    # Also log model artifact in run
+    # Log model artifact
     mlflow.log_artifact(model_path)
 
     # Save metrics as json output
